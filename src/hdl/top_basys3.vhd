@@ -113,10 +113,25 @@ component sevenSegDecoder is
            o_S : out STD_LOGIC_VECTOR (6 downto 0));
 end component sevenSegDecoder;
 
+component TDM4 is
+    Port ( i_clk		: in  STD_LOGIC;
+           i_reset		: in  STD_LOGIC; -- asynchronous
+           i_D3 		: in  STD_LOGIC_VECTOR (3 downto 0);
+		   i_D2 		: in  STD_LOGIC_VECTOR (3 downto 0);
+		   i_D1 		: in  STD_LOGIC_VECTOR (3 downto 0);
+		   i_D0 		: in  STD_LOGIC_VECTOR (3 downto 0);
+		   o_data		: out STD_LOGIC_VECTOR (3 downto 0);
+		   o_sel		: out STD_LOGIC_VECTOR (3 downto 0)
+		   );
+end component TDM4;
+
 signal w_clk : std_logic;
+signal w_clk2 : std_logic;
 signal w_floor : std_logic_vector(3 downto 0);
-signal w_D : std_logic_vector(3 downto 0);
+signal w_D0, w_D1, w_D2, w_D3 : std_logic_vector(3 downto 0);
 signal w_disp : std_logic_vector(3 downto 0);
+signal w_sel : std_logic_vector(3 downto 0);
+
 
 
 begin
@@ -137,9 +152,16 @@ port map(
         i_reset => btnL,
         o_clk   => w_clk
         );  
+clkdiv_inst2 : clock_divider 		--instantiation of clock_divider to take 
+        generic map ( k_DIV => 50000 ) -- 1 Hz clock from 100 MHz
+        port map(                          
+                i_clk   => clk,
+                i_reset => btnL,
+                o_clk   => w_clk2
+                );  
 sevenSeg_inst : sevenSegDecoder
 port map(
-        i_D => w_floor,
+        i_D => w_disp,
         o_S(0) => seg(0),
         o_S(1) => seg(1),
         o_S(2) => seg(2),
@@ -148,7 +170,17 @@ port map(
         o_S(5) => seg(5),
         o_S(6) => seg(6)
         );
- 
+TDM_inst : TDM4
+port map(
+         i_clk => w_clk2,
+         i_reset => btnU,
+         i_D3 => w_D3,
+         i_D2 => w_D2,
+         i_D1 => w_D1,
+         i_D0 => w_D0,
+         o_data => w_disp,
+         o_sel => w_sel
+         );
 	
 	-- CONCURRENT STATEMENTS ----------------------------
 	
@@ -159,7 +191,44 @@ port map(
 	-- leave unused switches UNCONNECTED. Ignore any warnings this causes.
 	
 	-- wire up active-low 7SD anodes (an) as required
-	an  <= (2 => '0', others => '1');
+	an(2) <= w_sel(2);
+	an(3) <= w_sel(3);
+	an(1) <= '1';
+	an(0) <= '1';
 	-- Tie any unused anodes to power ('1') to keep them off
-	
+	with w_floor select
+	   w_D3 <= "0000" when "0001",
+	   "0000" when "0010",
+	   "0000" when "0011",
+       "0000" when "0100",
+       "0000" when "0101",
+       "0000" when "0110",
+       "0000" when "0111",
+       "0000" when "1000",
+       "0000" when "1001",
+       "0001" when "1010",
+       "0001" when "1011",
+       "0001" when "1100",
+       "0001" when "1101",
+       "0001" when "1110",
+       "0001" when "1111",
+       "0001" when "0000",
+       "0000" when others;
+   with w_floor select
+    w_D2 <= "0001" when "0001",
+        "0010" when "0010",
+        "0011" when "0011",
+        "0100" when "0100",
+        "0101" when "0101",
+        "0110" when "0110",
+        "0111" when "0111",
+        "1000" when "1000",
+        "1001" when "1001",
+        "0000" when "1010",
+        "0001" when "1011",
+        "0010" when "1100",
+        "0011" when "1101",
+        "0100" when "1110",
+        "0101" when "1111",
+        "0110" when "0000";
 end top_basys3_arch;
